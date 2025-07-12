@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSession } from 'next-auth/react'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams, useRouter } from 'next/navigation'
@@ -129,7 +129,7 @@ const sortOptions = [
   { value: 'price_high', label: 'Price: High to Low' }
 ]
 
-export default function ExplorePage() {
+function ExplorePageContent() {
   const { data: session } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -677,5 +677,13 @@ export default function ExplorePage() {
         </Tabs>
       </main>
     </div>
+  )
+}
+
+export default function ExplorePage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ExplorePageContent />
+    </Suspense>
   )
 }
