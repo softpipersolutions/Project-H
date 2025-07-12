@@ -1,12 +1,10 @@
 import { NextAuthOptions } from 'next-auth'
-import { PrismaAdapter } from '@next-auth/prisma-adapter'
 import GoogleProvider from 'next-auth/providers/google'
 import GitHubProvider from 'next-auth/providers/github'
 import DiscordProvider from 'next-auth/providers/discord'
 import { prisma } from './prisma'
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -64,44 +62,62 @@ export const authOptions: NextAuthOptions = {
       }
     },
 
-    async session({ session }) {
-      if (session.user) {
-        const dbUser = await prisma.user.findUnique({
-          where: { email: session.user.email! },
-          include: {
-            creatorProfile: true,
-            subscriptions: {
-              where: { status: 'ACTIVE' },
-              orderBy: { createdAt: 'desc' },
-              take: 1,
+    async jwt({ token, user, account }) {
+      // Initial sign in
+      if (user) {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { email: user.email! },
+            include: {
+              creatorProfile: true,
+              subscriptions: {
+                where: { status: 'ACTIVE' },
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+              },
             },
-          },
-        })
+          })
 
-        if (dbUser) {
-          session.user.id = dbUser.id
-          session.user.username = dbUser.username
-          session.user.displayName = dbUser.displayName
-          session.user.type = dbUser.type
-          session.user.subscriptionTier = dbUser.subscriptionTier
-          session.user.isVerified = dbUser.isVerified
-          session.user.creatorProfile = dbUser.creatorProfile
-          session.user.activeSubscription = dbUser.subscriptions[0] || null
+          if (dbUser) {
+            token.id = dbUser.id
+            token.username = dbUser.username
+            token.displayName = dbUser.displayName
+            token.type = dbUser.type
+            token.subscriptionTier = dbUser.subscriptionTier
+            token.isVerified = dbUser.isVerified
+            token.creatorProfile = dbUser.creatorProfile
+            token.activeSubscription = dbUser.subscriptions[0] || null
+          }
+        } catch (error) {
+          console.error('Error fetching user data:', error)
         }
+      }
+
+      if (account) {
+        token.accessToken = account.access_token
+      }
+
+      return token
+    },
+
+    async session({ session, token }) {
+      // Send properties to the client
+      if (token) {
+        session.user.id = token.id as string
+        session.user.username = token.username as string
+        session.user.displayName = token.displayName as string
+        session.user.type = token.type as any
+        session.user.subscriptionTier = token.subscriptionTier as any
+        session.user.isVerified = token.isVerified as boolean
+        session.user.creatorProfile = token.creatorProfile as any
+        session.user.activeSubscription = token.activeSubscription as any
       }
 
       return session
     },
-
-    async jwt({ token, account }) {
-      if (account) {
-        token.accessToken = account.access_token
-      }
-      return token
-    },
   },
   session: {
-    strategy: 'database',
+    strategy: 'jwt',
   },
   pages: {
     signIn: '/auth/signin',
