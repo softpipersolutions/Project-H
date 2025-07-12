@@ -1,0 +1,304 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  username        String   @unique
+  displayName     String
+  avatar          String?
+  type            UserType @default(BROWSER)
+  subscriptionTier SubscriptionTier @default(FREE)
+  isVerified      Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  accounts        Account[]
+  sessions        Session[]
+  videos          Video[]
+  purchases       Purchase[]
+  subscriptions   Subscription[]
+  comments        Comment[]
+  likes           Like[]
+  creatorProfile  Creator?
+  collections     Collection[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verificationtokens")
+}
+
+model Creator {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  bio           String?
+  website       String?
+  twitterHandle String?
+  instagramHandle String?
+  youtubeChannel String?
+  discordHandle String?
+  specialties   VideoCategory[]
+  isVerified    Boolean  @default(false)
+  totalEarnings Float    @default(0)
+  monthlyEarnings Float  @default(0)
+  pendingPayouts Float   @default(0)
+  lifetimeRevenue Float  @default(0)
+  totalVideos   Int      @default(0)
+  totalViews    Int      @default(0)
+  totalLikes    Int      @default(0)
+  totalPurchases Int     @default(0)
+  followers     Int      @default(0)
+  averageRating Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("creators")
+}
+
+model Video {
+  id              String        @id @default(cuid())
+  title           String
+  description     String
+  thumbnailUrl    String
+  videoUrl        String
+  duration        Int           // in seconds
+  fileSize        Int           // in bytes
+  resolution      String
+  creatorId       String
+  aiModel         String
+  prompts         String[]
+  negativePrompts String[]
+  tags            String[]
+  category        VideoCategory
+  style           VideoStyle
+  isPublic        Boolean       @default(true)
+  isFeatured      Boolean       @default(false)
+  
+  // Pricing
+  personalLicense   Float?
+  commercialLicense Float?
+  extendedLicense   Float?
+  exclusiveRights   Float?
+  isAvailableForSale Boolean @default(true)
+  freeAccess        SubscriptionTier[] @default([])
+  
+  // Metadata
+  modelVersion    String?
+  generationTime  Int?      // in seconds
+  seed            String?
+  guidanceScale   Float?
+  steps           Int?
+  aspectRatio     String
+  fps             Int       @default(30)
+  
+  // Stats
+  views           Int       @default(0)
+  likes           Int       @default(0)
+  purchases       Int       @default(0)
+  revenue         Float     @default(0)
+  comments        Int       @default(0)
+  shares          Int       @default(0)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  creator         User         @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  videoLikes      Like[]
+  videoComments   Comment[]
+  videoPurchases  Purchase[]
+  collections     Collection[] @relation("CollectionVideos")
+
+  @@map("videos")
+}
+
+model Collection {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  coverImage  String
+  curatorId   String?
+  isOfficial  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  curator User?   @relation(fields: [curatorId], references: [id])
+  videos  Video[] @relation("CollectionVideos")
+
+  @@map("collections")
+}
+
+model Purchase {
+  id               String        @id @default(cuid())
+  userId           String
+  videoId          String
+  licenseType      LicenseType
+  amount           Float
+  currency         String        @default("USD")
+  stripePaymentId  String        @unique
+  status           PaymentStatus @default(PENDING)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  // Relations
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@map("purchases")
+}
+
+model Subscription {
+  id                   String           @id @default(cuid())
+  userId               String
+  tier                 SubscriptionTier
+  status               SubscriptionStatus
+  stripeSubscriptionId String           @unique
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  userId    String
+  videoId   String
+  parentId  String?
+  likes     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video   Video     @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies Comment[] @relation("CommentReplies")
+
+  @@map("comments")
+}
+
+model Like {
+  id      String @id @default(cuid())
+  userId  String
+  videoId String
+
+  // Relations
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, videoId])
+  @@map("likes")
+}
+
+// Enums
+enum UserType {
+  CREATOR
+  COLLECTOR
+  BROWSER
+}
+
+enum SubscriptionTier {
+  FREE
+  PREMIUM
+  PRO
+}
+
+enum VideoCategory {
+  CINEMATIC
+  ABSTRACT
+  PHOTOREALISTIC
+  ANIMATION
+  MOTION_GRAPHICS
+  EXPERIMENTAL
+  NATURE
+  ARCHITECTURE
+  FASHION
+  TECHNOLOGY
+}
+
+enum VideoStyle {
+  CINEMATIC
+  MINIMALIST
+  SURREAL
+  RETRO
+  FUTURISTIC
+  ARTISTIC
+  COMMERCIAL
+  DOCUMENTARY
+}
+
+enum LicenseType {
+  PERSONAL
+  COMMERCIAL
+  EXTENDED
+  EXCLUSIVE
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+}
