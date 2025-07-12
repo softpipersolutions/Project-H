@@ -1,28 +1,24 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { VideoCategory } from '@prisma/client'
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const session = await getServerSession(authOptions)
-
     // Get all categories
-    const allCategories = [
-      'AI_ART',
-      'ANIMATION', 
-      'ARCHITECTURE',
-      'CHARACTERS',
-      'LANDSCAPES',
-      'ABSTRACT',
-      'PORTRAITS',
-      'FANTASY',
-      'SCI_FI',
-      'NATURE',
-      'URBAN'
+    const allCategories: VideoCategory[] = [
+      VideoCategory.CINEMATIC,
+      VideoCategory.ABSTRACT,
+      VideoCategory.PHOTOREALISTIC,
+      VideoCategory.ANIMATION,
+      VideoCategory.MOTION_GRAPHICS,
+      VideoCategory.EXPERIMENTAL,
+      VideoCategory.NATURE,
+      VideoCategory.ARCHITECTURE,
+      VideoCategory.FASHION,
+      VideoCategory.TECHNOLOGY
     ]
 
-    const categories: { [key: string]: any[] } = {}
+    const categories: { [key: string]: unknown[] } = {}
 
     // Get featured video for each category
     for (const category of allCategories) {
@@ -37,22 +33,20 @@ export async function GET(request: NextRequest) {
         },
         include: {
           creator: {
-            include: {
-              user: {
-                select: {
-                  username: true,
-                  name: true,
-                  image: true,
-                  isVerified: true,
-                }
-              }
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+              avatar: true,
+              type: true,
+              isVerified: true,
             }
           },
           _count: {
             select: {
-              likes: true,
-              comments: true,
-              purchases: true,
+              videoLikes: true,
+              videoComments: true,
+              videoPurchases: true,
             }
           }
         },
@@ -71,7 +65,7 @@ export async function GET(request: NextRequest) {
         thumbnailUrl: video.thumbnailUrl,
         duration: video.duration,
         views: video.views,
-        likes: video._count.likes,
+        likes: video._count.videoLikes,
         category: video.category,
         style: video.style,
         isFeatured: video.isFeatured,
@@ -83,10 +77,10 @@ export async function GET(request: NextRequest) {
           isAvailableForSale: video.isAvailableForSale,
         },
         creator: {
-          username: video.creator.user.username,
-          displayName: video.creator.user.name || video.creator.user.username,
-          avatar: video.creator.user.image,
-          isVerified: video.creator.user.isVerified,
+          username: video.creator.username,
+          displayName: video.creator.displayName,
+          avatar: video.creator.avatar,
+          isVerified: video.creator.isVerified,
         },
         createdAt: video.createdAt.toISOString(),
       }))
@@ -100,22 +94,20 @@ export async function GET(request: NextRequest) {
       },
       include: {
         creator: {
-          include: {
-            user: {
-              select: {
-                username: true,
-                name: true,
-                image: true,
-                isVerified: true,
-              }
-            }
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatar: true,
+            type: true,
+            isVerified: true,
           }
         },
         _count: {
           select: {
-            likes: true,
-            comments: true,
-            purchases: true,
+            videoLikes: true,
+            videoComments: true,
+            videoPurchases: true,
           }
         }
       },
@@ -132,7 +124,7 @@ export async function GET(request: NextRequest) {
       thumbnailUrl: video.thumbnailUrl,
       duration: video.duration,
       views: video.views,
-      likes: video._count.likes,
+      likes: video._count.videoLikes,
       category: video.category,
       style: video.style,
       isFeatured: video.isFeatured,
@@ -144,10 +136,10 @@ export async function GET(request: NextRequest) {
         isAvailableForSale: video.isAvailableForSale,
       },
       creator: {
-        username: video.creator.user.username,
-        displayName: video.creator.user.name || video.creator.user.username,
-        avatar: video.creator.user.image,
-        isVerified: video.creator.user.isVerified,
+        username: video.creator.username,
+        displayName: video.creator.displayName,
+        avatar: video.creator.avatar,
+        isVerified: video.creator.isVerified,
       },
       createdAt: video.createdAt.toISOString(),
     }))
